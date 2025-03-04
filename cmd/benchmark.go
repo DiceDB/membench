@@ -4,6 +4,9 @@
 package cmd
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/dicedb/membench/benchmark"
 	"github.com/dicedb/membench/config"
 	"github.com/spf13/cobra"
@@ -14,6 +17,12 @@ var benchmarkCmd = &cobra.Command{
 	Short: "Runs the benchmark with the given configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		config.Init(cmd.Flags())
+		err := benchmark.Test(config.C)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("all things checked ... database is ready")
+		fmt.Println("running benchmark ...")
 		benchmark.Run(config.C)
 	},
 }
@@ -32,6 +41,5 @@ func init() {
 	benchmarkCmd.Flags().Int("value-size", 64, "value size in bytes")
 	benchmarkCmd.Flags().String("key-prefix", "mb", "prefix for keys")
 	benchmarkCmd.Flags().Float64("read-ratio", 0.8, "ratio of read to write operations (0.0-1.0)")
-	benchmarkCmd.Flags().Int("duration", 60, "run benchmark for n seconds")
 	benchmarkCmd.Flags().Int("report-every", 5, "report stats every n seconds")
 }

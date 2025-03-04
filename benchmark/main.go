@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"os"
-	"os/signal"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,11 +16,33 @@ import (
 	"github.com/dicedb/membench/reporting"
 )
 
-func Run(config *config.Config) {
+func Test(cfg *config.Config) error {
+	ctx := context.Background()
+
+	d := newClient(cfg)
+	defer d.Close()
+
+	// Enhanced test with error handling
+	if _, err := d.Get(ctx, "test"); err != nil {
+		return fmt.Errorf("initial get test failed: %w", err)
+	}
+
+	if err := d.Set(ctx, "test", "test"); err != nil {
+		return fmt.Errorf("set test failed: %w", err)
+	}
+
+	if _, err := d.Get(ctx, "test"); err != nil {
+		return fmt.Errorf("follow-up get test failed: %w", err)
+	}
+
+	return nil
+}
+
+func Run(cfg *config.Config) {
 	ctx := context.Background()
 	stats := &reporting.BenchmarkStats{
-		GetLatencies: make([]time.Duration, 0, config.NumRequests),
-		SetLatencies: make([]time.Duration, 0, config.NumRequests),
+		GetLatencies: make([]time.Duration, 0, cfg.NumRequests),
+		SetLatencies: make([]time.Duration, 0, cfg.NumRequests),
 		StartTime:    time.Now(),
 		LastReportAt: time.Now(),
 	}
@@ -30,121 +50,85 @@ func Run(config *config.Config) {
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Handle CTRL+C
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt)
+	// Reporting goroutine
 	go func() {
-		<-sigChan
-		fmt.Println("\nReceived interrupt signal. Gracefully shutting down...")
-		cancel()
+		ticker := time.NewTicker(time.Duration(cfg.ReportEvery) * time.Second)
+		for range ticker.C {
+			reportStats(stats, false)
+		}
 	}()
 
 	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		ticker := time.NewTicker(time.Duration(config.ReportEvery) * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				reportStats(stats, false)
-			case <-runCtx.Done():
-				return
-			}
-		}
-	}()
-
-	// Start worker goroutines
-	for i := 0; i < config.NumClients; i++ {
+	for range cfg.NumClients {
 		wg.Add(1)
-		go func(clientID int) {
-			defer wg.Done()
-			runBenchmark(runCtx, config, stats, clientID)
-		}(i)
+		go run(runCtx, cfg, stats, &wg)
 	}
 
-	// If duration is specified, stop after that time
-	if config.Duration > 0 {
-		time.Sleep(time.Duration(config.Duration) * time.Second)
-		cancel()
-	}
-
-	// Wait for all goroutines to finish
 	wg.Wait()
-
-	// Report final stats
 	reportStats(stats, true)
 }
 
-func runBenchmark(ctx context.Context, config *config.Config, stats *reporting.BenchmarkStats, clientID int) {
-	var d db.DB
-	if config.Database == "redis" {
-		d = db.NewRedis(config.Host, config.Port)
-		defer d.Close()
-	} else {
-		panic("unsupported database: " + config.Database)
+func newClient(cfg *config.Config) db.DB {
+	switch cfg.Database {
+	case "redis":
+		return db.NewRedis(cfg.Host, cfg.Port)
+	default:
+		panic(fmt.Sprintf("unsupported database: %s", cfg.Database))
 	}
+}
 
-	// Seed the random number generator
-	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(clientID)))
+func run(ctx context.Context, cfg *config.Config, stats *reporting.BenchmarkStats, wg *sync.WaitGroup) {
+	d := newClient(cfg)
+	defer d.Close()
+	defer wg.Done()
+
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Pre-generate keys and values
-	keys := make([]string, config.NumRequests)
-	values := make([]string, config.NumRequests)
+	keys := make([]string, cfg.NumRequests)
+	values := make([]string, cfg.NumRequests)
 
-	for i := 0; i < config.NumRequests; i++ {
-		keys[i] = generateKey(config.KeyPrefix, config.KeySize, r)
-		values[i] = generateValue(config.ValueSize, r)
+	for i := 0; i < cfg.NumRequests; i++ {
+		keys[i] = generateKey(cfg.KeyPrefix, cfg.KeySize, rnd)
+		values[i] = generateValue(cfg.ValueSize, rnd)
 	}
 
-	// Run benchmark loop
-	for reqCount := 0; ; reqCount = (reqCount + 1) % config.NumRequests {
-		// Check if context is canceled
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			// Continue benchmark
-		}
-
-		isRead := r.Float64() < config.ReadRatio
+	for reqCount := range cfg.NumRequests {
+		isRead := rnd.Float64() < cfg.ReadRatio
 		key := keys[reqCount]
+		value := values[reqCount]
 
+		var err error
+
+		start := time.Now()
 		if isRead {
-			start := time.Now()
-			_, err := d.Get(ctx, key)
-			elapsed := time.Since(start)
-
-			if err != nil {
-				atomic.AddUint64(&stats.ErrorCount, 1)
-			} else {
-				stats.StatLock.Lock()
-				stats.TotalGets++
-				stats.GetLatencies = append(stats.GetLatencies, elapsed)
-				stats.TotalOps++
-				stats.StatLock.Unlock()
-			}
+			_, err = d.Get(ctx, key)
 		} else {
-			value := values[reqCount]
-
-			start := time.Now()
-			err := d.Set(ctx, key, value)
-			elapsed := time.Since(start)
-
-			if err != nil {
-				atomic.AddUint64(&stats.ErrorCount, 1)
-			} else {
-				stats.StatLock.Lock()
-				stats.TotalSets++
-				stats.SetLatencies = append(stats.SetLatencies, elapsed)
-				stats.TotalOps++
-				stats.StatLock.Unlock()
-			}
+			err = d.Set(ctx, key, value)
 		}
+
+		handleOpStats(stats, err, time.Since(start), isRead)
 	}
+}
+
+// New helper function to reduce code duplication
+func handleOpStats(stats *reporting.BenchmarkStats, err error, elapsed time.Duration, isGet bool) {
+	if err != nil {
+		atomic.AddUint64(&stats.ErrorCount, 1)
+		return
+	}
+
+	stats.StatLock.Lock()
+	defer stats.StatLock.Unlock()
+
+	if isGet {
+		stats.TotalGets++
+		stats.GetLatencies = append(stats.GetLatencies, elapsed)
+	} else {
+		stats.TotalSets++
+		stats.SetLatencies = append(stats.SetLatencies, elapsed)
+	}
+	stats.TotalOps++
 }
 
 func generateKey(prefix string, size int, r *rand.Rand) string {
@@ -179,18 +163,11 @@ func reportStats(stats *reporting.BenchmarkStats, isFinal bool) {
 
 	now := time.Now()
 	elapsed := now.Sub(stats.StartTime)
-	intervalElapsed := now.Sub(stats.LastReportAt)
 	stats.LastReportAt = now
 
 	// Calculate throughput
 	totalOps := stats.TotalOps
 	opsPerSec := float64(totalOps) / elapsed.Seconds()
-	intervalOpsPerSec := float64(0)
-
-	if !isFinal {
-		// For interval calculation, use the difference since last report
-		intervalOpsPerSec = float64(totalOps) / intervalElapsed.Seconds()
-	}
 
 	// Calculate latencies
 	var getP50, getP99, setP50, setP99 time.Duration
@@ -221,19 +198,15 @@ func reportStats(stats *reporting.BenchmarkStats, isFinal bool) {
 	fmt.Printf("Total Operations: %d (Gets: %d, Sets: %d)\n", totalOps, stats.TotalGets, stats.TotalSets)
 	fmt.Printf("Throughput: %.2f ops/sec\n", opsPerSec)
 
-	if !isFinal {
-		fmt.Printf("Current Throughput: %.2f ops/sec\n", intervalOpsPerSec)
-	}
-
 	if len(stats.GetLatencies) > 0 {
-		fmt.Printf("GET Latency (avg/p50/p99): %.2fms / %.2fms / %.2fms\n",
+		fmt.Printf("GET Latency (avg / p50 / p99): %.2fms / %.2fms / %.2fms\n",
 			float64(getAvg)/float64(time.Millisecond),
 			float64(getP50)/float64(time.Millisecond),
 			float64(getP99)/float64(time.Millisecond))
 	}
 
 	if len(stats.GetLatencies) > 0 {
-		fmt.Printf("SET Latency (avg/p50/p99): %.2fms / %.2fms / %.2fms\n",
+		fmt.Printf("SET Latency (avg / p50 / p99): %.2fms / %.2fms / %.2fms\n",
 			float64(setAvg)/float64(time.Millisecond),
 			float64(setP50)/float64(time.Millisecond),
 			float64(setP99)/float64(time.Millisecond))
@@ -242,7 +215,6 @@ func reportStats(stats *reporting.BenchmarkStats, isFinal bool) {
 	fmt.Printf("Errors: %d\n", stats.ErrorCount)
 
 	if isFinal {
-		// Clear latency slices to free memory
 		stats.GetLatencies = nil
 		stats.SetLatencies = nil
 	}
@@ -254,8 +226,6 @@ func getPercentileLatency(latencies []time.Duration, percentile int) time.Durati
 		return 0
 	}
 
-	// Simple implementation for benchmarking
-	// Sort would be more accurate but this is faster for large datasets
 	var max time.Duration
 	var min time.Duration = time.Hour
 	var sum time.Duration

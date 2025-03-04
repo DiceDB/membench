@@ -22,7 +22,6 @@ type Config struct {
 	ValueSize   int     `mapstructure:"value-size" default:"64"`
 	KeyPrefix   string  `mapstructure:"key-prefix" default:"mb-"`
 	ReadRatio   float64 `mapstructure:"read-ratio" default:"0.8"`
-	Duration    int     `mapstructure:"duration" default:"60"`
 	ReportEvery int     `mapstructure:"report-every" default:"1000"`
 }
 
