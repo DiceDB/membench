@@ -33,7 +33,7 @@ func init() {
 	benchmarkCmd.Flags().String("host", "localhost", "database host address")
 	benchmarkCmd.Flags().Int("port", 7379, "database port")
 
-	benchmarkCmd.Flags().String("database", "dicedb", "database to benchmark (dicedb, redis)")
+	benchmarkCmd.Flags().String("database", "dicedb", "database to benchmark (dicedb, redis, null)")
 
 	benchmarkCmd.Flags().Int("num-clients", 50, "number of parallel clients to simulate")
 	benchmarkCmd.Flags().Int("num-requests", 100000, "number of requests to hit per simulated client")

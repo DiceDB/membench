@@ -1,5 +1,11 @@
+run-dicedb:
+	go run main.go benchmark --database dicedb --host localhost --port 7379
+
 run-redis:
 	go run main.go benchmark --database redis --host localhost --port 6379
+
+run-null:
+	go run main.go benchmark --database null
 
 add-license-notice:
 	./add_license_notice.sh

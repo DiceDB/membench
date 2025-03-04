@@ -70,8 +70,12 @@ func Run(cfg *config.Config) {
 
 func newClient(cfg *config.Config) db.DB {
 	switch cfg.Database {
+	case "dicedb":
+		return db.NewDiceDB(cfg.Host, cfg.Port)
 	case "redis":
 		return db.NewRedis(cfg.Host, cfg.Port)
+	case "null":
+		return db.NewNull()
 	default:
 		panic(fmt.Sprintf("unsupported database: %s", cfg.Database))
 	}

@@ -3,13 +3,24 @@
 
 package db
 
+import (
+	"context"
+)
+
 type N struct {
 }
 
-func (*N) Get(key string) (string, error) {
+func (r N) Get(ctx context.Context, key string) (string, error) {
 	return "", nil
 }
 
-func (*N) Set(key, value string) error {
+func (r N) Set(ctx context.Context, key, value string) error {
 	return nil
+}
+
+func (r N) Close() {
+}
+
+func NewNull() N {
+	return N{}
 }
