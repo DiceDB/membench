@@ -7,6 +7,21 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	PMetricsLatencyGet = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "latency_get_ns",
+		Help:    "Observed latencies for GET command in nanoseconds",
+		Buckets: prometheus.DefBuckets,
+	})
+	PMetricsLatencySet = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "latency_set_ns",
+		Help:    "Observed latencies for SET command in nanoseconds",
+		Buckets: prometheus.DefBuckets,
+	})
 )
 
 type BenchmarkStats struct {
@@ -19,6 +34,14 @@ type BenchmarkStats struct {
 	StartTime    time.Time
 	LastReportAt time.Time
 	StatLock     sync.Mutex
+}
+
+func (stats *BenchmarkStats) EmitGet(latency_ns float64) {
+	PMetricsLatencyGet.Observe(latency_ns)
+}
+
+func (stats *BenchmarkStats) EmitSet(latency_ns float64) {
+	PMetricsLatencySet.Observe(latency_ns)
 }
 
 func (stats *BenchmarkStats) Print() {

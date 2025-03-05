@@ -38,7 +38,9 @@ func Test(cfg *config.Config) error {
 	return nil
 }
 
-func Run(cfg *config.Config) {
+func Run(cfg *config.Config, rwg *sync.WaitGroup) {
+	defer rwg.Done()
+
 	ctx := context.Background()
 	stats := &reporting.BenchmarkStats{
 		GetLatencies: make([]time.Duration, 0, cfg.NumRequests),
@@ -111,12 +113,12 @@ func run(ctx context.Context, cfg *config.Config, stats *reporting.BenchmarkStat
 			err = d.Set(ctx, key, value)
 		}
 
-		handleOpStats(stats, err, time.Since(start), isRead)
+		handleOpStats(cfg, stats, err, time.Since(start), isRead)
 	}
 }
 
 // New helper function to reduce code duplication
-func handleOpStats(stats *reporting.BenchmarkStats, err error, elapsed time.Duration, isGet bool) {
+func handleOpStats(cfg *config.Config, stats *reporting.BenchmarkStats, err error, elapsed time.Duration, isGet bool) {
 	if err != nil {
 		atomic.AddUint64(&stats.ErrorCount, 1)
 		return
@@ -128,9 +130,15 @@ func handleOpStats(stats *reporting.BenchmarkStats, err error, elapsed time.Dura
 	if isGet {
 		stats.TotalGets++
 		stats.GetLatencies = append(stats.GetLatencies, elapsed)
+		if cfg.EmitMetricsSink == "prometheus" {
+			stats.EmitGet(float64(elapsed.Nanoseconds()))
+		}
 	} else {
 		stats.TotalSets++
 		stats.SetLatencies = append(stats.SetLatencies, elapsed)
+		if cfg.EmitMetricsSink == "prometheus" {
+			stats.EmitSet(float64(elapsed.Nanoseconds()))
+		}
 	}
 	stats.TotalOps++
 }

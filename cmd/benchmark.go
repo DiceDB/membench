@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/dicedb/membench/benchmark"
 	"github.com/dicedb/membench/config"
@@ -23,7 +24,16 @@ var benchmarkCmd = &cobra.Command{
 		}
 		fmt.Println("all things checked ... database is ready")
 		fmt.Println("running benchmark ...")
-		benchmark.Run(config.C)
+
+		var rwg sync.WaitGroup
+		rwg.Add(1)
+		go benchmark.Run(config.C, &rwg)
+
+		if config.C.EmitMetricsSink == "prometheus" {
+			go benchmark.RunPrometheusHTTPMetricsServer()
+		}
+
+		rwg.Wait()
 	},
 }
 
@@ -42,4 +52,6 @@ func init() {
 	benchmarkCmd.Flags().String("key-prefix", "mb", "prefix for keys")
 	benchmarkCmd.Flags().Float64("read-ratio", 0.8, "ratio of read to write operations (0.0-1.0)")
 	benchmarkCmd.Flags().Int("report-every", 5, "report stats every n seconds")
+
+	benchmarkCmd.Flags().String("emit-metrics-sink", "null", "emit metrics to which sink (prometheus, null)")
 }
