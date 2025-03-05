@@ -1,5 +1,5 @@
 run-dicedb:
-	go run main.go benchmark --database dicedb --host localhost --port 7379
+	go run main.go benchmark --database dicedb --host localhost --port 7379  --num-requests 100000 --num-clients 50
 
 run-redis:
 	go run main.go benchmark --database redis --host localhost --port 6379
