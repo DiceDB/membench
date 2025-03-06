@@ -13,3 +13,6 @@ add-license-notice:
 lint:
 	gofmt -w .
 	golangci-lint run ./...
+
+build:
+	go build
