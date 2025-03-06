@@ -51,7 +51,6 @@ func init() {
 	benchmarkCmd.Flags().Int("value-size", 64, "value size in bytes")
 	benchmarkCmd.Flags().String("key-prefix", "mb", "prefix for keys")
 	benchmarkCmd.Flags().Float64("read-ratio", 0.8, "ratio of read to write operations (0.0-1.0)")
-	benchmarkCmd.Flags().Int("report-every", 5, "report stats every n seconds")
 
-	benchmarkCmd.Flags().String("emit-metrics-sink", "mem", "emit metrics to which sink (prometheus, mem)")
+	benchmarkCmd.Flags().String("telemetry-sink", "mem", "sink for the benchmark telemetry (mem, prometheus)")
 }

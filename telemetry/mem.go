@@ -1,7 +1,7 @@
 // Copyright (c) 2022-present, DiceDB contributors
 // All rights reserved. Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
-package reporting
+package telemetry
 
 import (
 	"fmt"
@@ -9,15 +9,15 @@ import (
 	"github.com/HdrHistogram/hdrhistogram-go"
 )
 
-type MemTelemetrySink struct {
+type MemSink struct {
 	MemLatencyCommandGET *hdrhistogram.Histogram
 	MemLatencyCommandSET *hdrhistogram.Histogram
 	MemErrorCommandGET   *hdrhistogram.Histogram
 	MemErrorCommandSET   *hdrhistogram.Histogram
 }
 
-func NewMemTelemetrySink() *MemTelemetrySink {
-	return &MemTelemetrySink{
+func NewMemSink() *MemSink {
+	return &MemSink{
 		MemLatencyCommandGET: hdrhistogram.New(1, 10000, 2),
 		MemLatencyCommandSET: hdrhistogram.New(1, 10000, 2),
 		MemErrorCommandGET:   hdrhistogram.New(1, 10000, 2),
@@ -25,7 +25,7 @@ func NewMemTelemetrySink() *MemTelemetrySink {
 	}
 }
 
-func (sink *MemTelemetrySink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
+func (sink *MemSink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
 	if command == "GET" {
 		_ = sink.MemLatencyCommandGET.RecordValue(int64(latency_ns))
 	} else if command == "SET" {
@@ -33,7 +33,7 @@ func (sink *MemTelemetrySink) RecordLatencyCommandInNanos(latency_ns float64, co
 	}
 }
 
-func (sink *MemTelemetrySink) RecordError(command string) {
+func (sink *MemSink) RecordError(command string) {
 	if command == "GET" {
 		_ = sink.MemErrorCommandGET.RecordValue(1)
 	} else if command == "SET" {
@@ -41,7 +41,7 @@ func (sink *MemTelemetrySink) RecordError(command string) {
 	}
 }
 
-func (sink *MemTelemetrySink) PrintReport() {
+func (sink *MemSink) PrintReport() {
 	fmt.Println("command,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
 	fmt.Printf("GET,%v,%v,%v,%v,%v\n",
 		int64(sink.MemLatencyCommandGET.Mean()),

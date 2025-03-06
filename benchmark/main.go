@@ -12,7 +12,7 @@ import (
 
 	"github.com/dicedb/membench/config"
 	"github.com/dicedb/membench/db"
-	"github.com/dicedb/membench/reporting"
+	"github.com/dicedb/membench/telemetry"
 )
 
 func Test(cfg *config.Config) error {
@@ -39,11 +39,11 @@ func Test(cfg *config.Config) error {
 func Run(cfg *config.Config, rwg *sync.WaitGroup) {
 	defer rwg.Done()
 
-	var teleSink reporting.TelemetrySink
+	var teleSink telemetry.Sink
 	if cfg.EmitMetricsSink == "mem" {
-		teleSink = reporting.NewMemTelemetrySink()
+		teleSink = telemetry.NewMemSink()
 	} else if cfg.EmitMetricsSink == "prometheus" {
-		teleSink = reporting.NewPrometheusTelemetrySink()
+		teleSink = telemetry.NewPrometheusSink()
 	} else {
 		panic(fmt.Sprintf("unsupported metrics sink: %s", cfg.EmitMetricsSink))
 	}
@@ -74,7 +74,7 @@ func newClient(cfg *config.Config) db.DB {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, teleSink reporting.TelemetrySink, wg *sync.WaitGroup) {
+func run(ctx context.Context, cfg *config.Config, sink telemetry.Sink, wg *sync.WaitGroup) {
 	d := newClient(cfg)
 	defer d.Close()
 	defer wg.Done()
@@ -107,16 +107,16 @@ func run(ctx context.Context, cfg *config.Config, teleSink reporting.TelemetrySi
 			err = d.Set(ctx, key, value)
 		}
 
-		handleOpStats(teleSink, err, time.Since(start), command)
+		handleOpStats(sink, err, time.Since(start), command)
 	}
 }
 
-func handleOpStats(teleSink reporting.TelemetrySink, err error, elapsed time.Duration, command string) {
+func handleOpStats(sink telemetry.Sink, err error, elapsed time.Duration, command string) {
 	if err != nil {
-		teleSink.RecordError(command)
+		sink.RecordError(command)
 		return
 	}
-	teleSink.RecordLatencyCommandInNanos(float64(elapsed.Nanoseconds()), command)
+	sink.RecordLatencyCommandInNanos(float64(elapsed.Nanoseconds()), command)
 }
 
 func generateKey(prefix string, size int, r *rand.Rand) string {

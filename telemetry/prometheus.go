@@ -1,7 +1,7 @@
 // Copyright (c) 2022-present, DiceDB contributors
 // All rights reserved. Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
-package reporting
+package telemetry
 
 import (
 	"fmt"
@@ -9,12 +9,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type PrometheusTelemetrySink struct {
+type PrometheusSink struct {
 	PLatencyCommand *prometheus.HistogramVec
 	PErrorCommand   *prometheus.CounterVec
 }
 
-func NewPrometheusTelemetrySink() *PrometheusTelemetrySink {
+func NewPrometheusSink() *PrometheusSink {
 	pLatencyCommand := prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "latency_command_ns_v1",
 		Help:    "Observed latencies for a command in nanoseconds",
@@ -28,21 +28,21 @@ func NewPrometheusTelemetrySink() *PrometheusTelemetrySink {
 	}, []string{"command"})
 	prometheus.MustRegister(pErrorCommand)
 
-	p := &PrometheusTelemetrySink{
+	p := &PrometheusSink{
 		PLatencyCommand: pLatencyCommand,
 		PErrorCommand:   pErrorCommand,
 	}
 	return p
 }
 
-func (sink *PrometheusTelemetrySink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
+func (sink *PrometheusSink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
 	sink.PLatencyCommand.WithLabelValues(command).Observe(latency_ns)
 }
 
-func (sink *PrometheusTelemetrySink) RecordError(command string) {
+func (sink *PrometheusSink) RecordError(command string) {
 	sink.PErrorCommand.WithLabelValues(command).Inc()
 }
 
-func (sink *PrometheusTelemetrySink) PrintReport() {
+func (sink *PrometheusSink) PrintReport() {
 	fmt.Println("Prometheus Telemetry Sink. Report not implemented")
 }
