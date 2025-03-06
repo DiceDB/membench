@@ -35,3 +35,10 @@ Prometheus and Grafana.
 ```
 $ docker-compose up
 ```
+
+## Deleting Prometheus Data
+
+```
+$ docker exec -it prometheus sh -c "rm -rf /prometheus/*"
+$ docker restart prometheus
+```

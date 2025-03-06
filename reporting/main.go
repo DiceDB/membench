@@ -12,16 +12,11 @@ import (
 )
 
 var (
-	PMetricsLatencyGet = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "latency_get_ns",
-		Help:    "Observed latencies for GET command in nanoseconds",
-		Buckets: prometheus.DefBuckets,
-	})
-	PMetricsLatencySet = prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "latency_set_ns",
-		Help:    "Observed latencies for SET command in nanoseconds",
-		Buckets: prometheus.DefBuckets,
-	})
+	PMetricsLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "latency_ns_v1",
+		Help:    "Observed latencies for a command in nanoseconds",
+		Buckets: prometheus.LinearBuckets(500000, 500000, 20),
+	}, []string{"command"})
 )
 
 type BenchmarkStats struct {
@@ -36,12 +31,8 @@ type BenchmarkStats struct {
 	StatLock     sync.Mutex
 }
 
-func (stats *BenchmarkStats) EmitGet(latency_ns float64) {
-	PMetricsLatencyGet.Observe(latency_ns)
-}
-
-func (stats *BenchmarkStats) EmitSet(latency_ns float64) {
-	PMetricsLatencySet.Observe(latency_ns)
+func (stats *BenchmarkStats) Emit(latency_ns float64, command string) {
+	PMetricsLatency.WithLabelValues(command).Observe(latency_ns)
 }
 
 func (stats *BenchmarkStats) Print() {

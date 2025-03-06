@@ -131,13 +131,13 @@ func handleOpStats(cfg *config.Config, stats *reporting.BenchmarkStats, err erro
 		stats.TotalGets++
 		stats.GetLatencies = append(stats.GetLatencies, elapsed)
 		if cfg.EmitMetricsSink == "prometheus" {
-			stats.EmitGet(float64(elapsed.Nanoseconds()))
+			stats.Emit(float64(elapsed.Nanoseconds()), "GET")
 		}
 	} else {
 		stats.TotalSets++
 		stats.SetLatencies = append(stats.SetLatencies, elapsed)
 		if cfg.EmitMetricsSink == "prometheus" {
-			stats.EmitSet(float64(elapsed.Nanoseconds()))
+			stats.Emit(float64(elapsed.Nanoseconds()), "SET")
 		}
 	}
 	stats.TotalOps++

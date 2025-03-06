@@ -10,8 +10,7 @@ import (
 )
 
 func RunPrometheusHTTPMetricsServer() {
-	prometheus.MustRegister(reporting.PMetricsLatencyGet)
-	prometheus.MustRegister(reporting.PMetricsLatencySet)
+	prometheus.MustRegister(reporting.PMetricsLatency)
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
