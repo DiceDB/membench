@@ -18,8 +18,8 @@ type MemSink struct {
 
 func NewMemSink() *MemSink {
 	return &MemSink{
-		MemLatencyCommandGET: hdrhistogram.New(1, 10000, 2),
-		MemLatencyCommandSET: hdrhistogram.New(1, 10000, 2),
+		MemLatencyCommandGET: hdrhistogram.New(1000, 50000000, 2),
+		MemLatencyCommandSET: hdrhistogram.New(1000, 50000000, 2),
 		MemErrorCommandGET:   hdrhistogram.New(1, 10000, 2),
 		MemErrorCommandSET:   hdrhistogram.New(1, 10000, 2),
 	}
@@ -55,4 +55,8 @@ func (sink *MemSink) PrintReport() {
 		sink.MemLatencyCommandSET.ValueAtQuantile(90),
 		sink.MemLatencyCommandSET.ValueAtQuantile(95),
 		sink.MemLatencyCommandSET.ValueAtQuantile(99))
+
+	fmt.Println("command,error_count")
+	fmt.Printf("GET,%v\n", sink.MemErrorCommandGET.TotalCount())
+	fmt.Printf("SET,%v\n", sink.MemErrorCommandSET.TotalCount())
 }

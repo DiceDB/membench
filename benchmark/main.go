@@ -40,12 +40,12 @@ func Run(cfg *config.Config, rwg *sync.WaitGroup) {
 	defer rwg.Done()
 
 	var teleSink telemetry.Sink
-	if cfg.EmitMetricsSink == "mem" {
+	if cfg.TelemetrySink == "mem" {
 		teleSink = telemetry.NewMemSink()
-	} else if cfg.EmitMetricsSink == "prometheus" {
+	} else if cfg.TelemetrySink == "prometheus" {
 		teleSink = telemetry.NewPrometheusSink()
 	} else {
-		panic(fmt.Sprintf("unsupported metrics sink: %s", cfg.EmitMetricsSink))
+		panic(fmt.Sprintf("unsupported telemetry sink: %s", cfg.TelemetrySink))
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())

@@ -22,9 +22,8 @@ type Config struct {
 	ValueSize   int     `mapstructure:"value-size" default:"64"`
 	KeyPrefix   string  `mapstructure:"key-prefix" default:"mb-"`
 	ReadRatio   float64 `mapstructure:"read-ratio" default:"0.8"`
-	ReportEvery int     `mapstructure:"report-every" default:"1000"`
 
-	EmitMetricsSink string `mapstructure:"emit-metrics-sink" default:"mem"`
+	TelemetrySink string `mapstructure:"telemetry-sink" default:"mem"`
 }
 
 func Init(flags *pflag.FlagSet) {

@@ -29,7 +29,7 @@ var benchmarkCmd = &cobra.Command{
 		rwg.Add(1)
 		go benchmark.Run(config.C, &rwg)
 
-		if config.C.EmitMetricsSink == "prometheus" {
+		if config.C.TelemetrySink == "prometheus" {
 			go benchmark.RunPrometheusHTTPMetricsServer()
 		}
 
