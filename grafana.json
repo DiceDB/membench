@@ -121,7 +121,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "sum(rate(latency_ns_v1_count[1m])) by (command)",
+          "expr": "sum(rate(latency_ns_v1_count[1m])) by (op)",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -224,7 +224,7 @@
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
-          "legendFormat": "{{command}}",
+          "legendFormat": "{{op}}",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -349,13 +349,13 @@
           "disableTextWrap": false,
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.9, sum(rate(latency_ns_v1_bucket[1m])) by (le, command))",
+          "expr": "histogram_quantile(0.9, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
           "format": "time_series",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "{{command}}",
+          "legendFormat": "{{op}}",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -453,7 +453,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(latency_ns_v1_bucket[1m])) by (le, command))",
+          "expr": "histogram_quantile(0.95, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -553,7 +553,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(latency_ns_v1_bucket[1m])) by (le, command))",
+          "expr": "histogram_quantile(0.99, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",

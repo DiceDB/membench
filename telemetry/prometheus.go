@@ -10,37 +10,37 @@ import (
 )
 
 type PrometheusSink struct {
-	PLatencyCommand *prometheus.HistogramVec
-	PErrorCommand   *prometheus.CounterVec
+	PLatencyOp *prometheus.HistogramVec
+	PErrorOp   *prometheus.CounterVec
 }
 
 func NewPrometheusSink() *PrometheusSink {
-	pLatencyCommand := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "latency_command_ns_v1",
-		Help:    "Observed latencies for a command in nanoseconds",
+	pLatencyOp := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "latency_op_ns_v1",
+		Help:    "Observed latencies for an operation in nanoseconds",
 		Buckets: prometheus.LinearBuckets(500000, 500000, 20),
-	}, []string{"command"})
-	prometheus.MustRegister(pLatencyCommand)
+	}, []string{"op"})
+	prometheus.MustRegister(pLatencyOp)
 
-	pErrorCommand := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "error_command_count_v1",
-		Help: "Observed errors for a command",
-	}, []string{"command"})
-	prometheus.MustRegister(pErrorCommand)
+	pErrorOp := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "error_op_count_v1",
+		Help: "Observed errors for an operation",
+	}, []string{"op"})
+	prometheus.MustRegister(pErrorOp)
 
 	p := &PrometheusSink{
-		PLatencyCommand: pLatencyCommand,
-		PErrorCommand:   pErrorCommand,
+		PLatencyOp: pLatencyOp,
+		PErrorOp:   pErrorOp,
 	}
 	return p
 }
 
-func (sink *PrometheusSink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
-	sink.PLatencyCommand.WithLabelValues(command).Observe(latency_ns)
+func (sink *PrometheusSink) RecordLatencyOpInNanos(latency_ns float64, op string) {
+	sink.PLatencyOp.WithLabelValues(op).Observe(latency_ns)
 }
 
-func (sink *PrometheusSink) RecordError(command string) {
-	sink.PErrorCommand.WithLabelValues(command).Inc()
+func (sink *PrometheusSink) RecordError(op string) {
+	sink.PErrorOp.WithLabelValues(op).Inc()
 }
 
 func (sink *PrometheusSink) PrintReport() {

@@ -96,27 +96,27 @@ func run(ctx context.Context, cfg *config.Config, sink telemetry.Sink, wg *sync.
 		value := values[reqCount]
 
 		var err error
-		var command string
+		var op string
 
 		start := time.Now()
 		if isRead {
-			command = "GET"
+			op = "GET"
 			_, err = d.Get(ctx, key)
 		} else {
-			command = "SET"
+			op = "SET"
 			err = d.Set(ctx, key, value)
 		}
 
-		handleOpStats(sink, err, time.Since(start), command)
+		handleOpStats(sink, err, time.Since(start), op)
 	}
 }
 
-func handleOpStats(sink telemetry.Sink, err error, elapsed time.Duration, command string) {
+func handleOpStats(sink telemetry.Sink, err error, elapsed time.Duration, op string) {
 	if err != nil {
-		sink.RecordError(command)
+		sink.RecordError(op)
 		return
 	}
-	sink.RecordLatencyCommandInNanos(float64(elapsed.Nanoseconds()), command)
+	sink.RecordLatencyOpInNanos(float64(elapsed.Nanoseconds()), op)
 }
 
 func generateKey(prefix string, size int, r *rand.Rand) string {

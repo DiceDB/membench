@@ -4,7 +4,7 @@
 package telemetry
 
 type Sink interface {
-	RecordLatencyCommandInNanos(latency_ns float64, command string)
-	RecordError(command string)
+	RecordLatencyOpInNanos(latency_ns float64, op string)
+	RecordError(op string)
 	PrintReport()
 }

@@ -10,53 +10,53 @@ import (
 )
 
 type MemSink struct {
-	MemLatencyCommandGET *hdrhistogram.Histogram
-	MemLatencyCommandSET *hdrhistogram.Histogram
-	MemErrorCommandGET   *hdrhistogram.Histogram
-	MemErrorCommandSET   *hdrhistogram.Histogram
+	MemLatencyOpGET *hdrhistogram.Histogram
+	MemLatencyOpSET *hdrhistogram.Histogram
+	MemErrorOpGET   *hdrhistogram.Histogram
+	MemErrorOpSET   *hdrhistogram.Histogram
 }
 
 func NewMemSink() *MemSink {
 	return &MemSink{
-		MemLatencyCommandGET: hdrhistogram.New(1000, 50000000, 2),
-		MemLatencyCommandSET: hdrhistogram.New(1000, 50000000, 2),
-		MemErrorCommandGET:   hdrhistogram.New(1, 10000, 2),
-		MemErrorCommandSET:   hdrhistogram.New(1, 10000, 2),
+		MemLatencyOpGET: hdrhistogram.New(1000, 50000000, 2),
+		MemLatencyOpSET: hdrhistogram.New(1000, 50000000, 2),
+		MemErrorOpGET:   hdrhistogram.New(1, 10000, 2),
+		MemErrorOpSET:   hdrhistogram.New(1, 10000, 2),
 	}
 }
 
-func (sink *MemSink) RecordLatencyCommandInNanos(latency_ns float64, command string) {
-	if command == "GET" {
-		_ = sink.MemLatencyCommandGET.RecordValue(int64(latency_ns))
-	} else if command == "SET" {
-		_ = sink.MemLatencyCommandSET.RecordValue(int64(latency_ns))
+func (sink *MemSink) RecordLatencyOpInNanos(latency_ns float64, op string) {
+	if op == "GET" {
+		_ = sink.MemLatencyOpGET.RecordValue(int64(latency_ns))
+	} else if op == "SET" {
+		_ = sink.MemLatencyOpSET.RecordValue(int64(latency_ns))
 	}
 }
 
-func (sink *MemSink) RecordError(command string) {
-	if command == "GET" {
-		_ = sink.MemErrorCommandGET.RecordValue(1)
-	} else if command == "SET" {
-		_ = sink.MemErrorCommandSET.RecordValue(1)
+func (sink *MemSink) RecordError(op string) {
+	if op == "GET" {
+		_ = sink.MemErrorOpGET.RecordValue(1)
+	} else if op == "SET" {
+		_ = sink.MemErrorOpSET.RecordValue(1)
 	}
 }
 
 func (sink *MemSink) PrintReport() {
-	fmt.Println("command,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
+	fmt.Println("op,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
 	fmt.Printf("GET,%v,%v,%v,%v,%v\n",
-		int64(sink.MemLatencyCommandGET.Mean()),
-		sink.MemLatencyCommandGET.ValueAtQuantile(50),
-		sink.MemLatencyCommandGET.ValueAtQuantile(90),
-		sink.MemLatencyCommandGET.ValueAtQuantile(95),
-		sink.MemLatencyCommandGET.ValueAtQuantile(99))
+		int64(sink.MemLatencyOpGET.Mean()),
+		sink.MemLatencyOpGET.ValueAtQuantile(50),
+		sink.MemLatencyOpGET.ValueAtQuantile(90),
+		sink.MemLatencyOpGET.ValueAtQuantile(95),
+		sink.MemLatencyOpGET.ValueAtQuantile(99))
 	fmt.Printf("SET,%v,%v,%v,%v,%v\n",
-		int64(sink.MemLatencyCommandSET.Mean()),
-		sink.MemLatencyCommandSET.ValueAtQuantile(50),
-		sink.MemLatencyCommandSET.ValueAtQuantile(90),
-		sink.MemLatencyCommandSET.ValueAtQuantile(95),
-		sink.MemLatencyCommandSET.ValueAtQuantile(99))
+		int64(sink.MemLatencyOpSET.Mean()),
+		sink.MemLatencyOpSET.ValueAtQuantile(50),
+		sink.MemLatencyOpSET.ValueAtQuantile(90),
+		sink.MemLatencyOpSET.ValueAtQuantile(95),
+		sink.MemLatencyOpSET.ValueAtQuantile(99))
 
-	fmt.Println("command,error_count")
-	fmt.Printf("GET,%v\n", sink.MemErrorCommandGET.TotalCount())
-	fmt.Printf("SET,%v\n", sink.MemErrorCommandSET.TotalCount())
+	fmt.Println("op,error_count")
+	fmt.Printf("GET,%v\n", sink.MemErrorOpGET.TotalCount())
+	fmt.Printf("SET,%v\n", sink.MemErrorOpSET.TotalCount())
 }

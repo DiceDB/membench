@@ -41,10 +41,10 @@ Accumulates all the metrics in in-memory histograms and outputs
 the report at the end of the benchmark.
 
 ```
-command,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99
+op,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99
 GET,82647,71679,103935,130047,264191
 SET,89865,73215,107007,134143,290815
-command,error_count
+op,error_count
 GET,0
 SET,0
 ```
