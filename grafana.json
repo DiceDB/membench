@@ -110,7 +110,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "sum(rate(latency_ns_v1_count[1m]))",
+          "expr": "sum(rate(latency_op_ns_v1_count[1m]))",
           "legendFormat": "TOTAL",
           "range": true,
           "refId": "A"
@@ -121,7 +121,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "sum(rate(latency_ns_v1_count[1m])) by (op)",
+          "expr": "sum(rate(latency_op_ns_v1_count[1m])) by (op)",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -220,7 +220,7 @@
           "disableTextWrap": false,
           "editorMode": "code",
           "exemplar": false,
-          "expr": "rate(latency_ns_v1_sum[1m]) / rate(latency_ns_v1_count[1m])",
+          "expr": "rate(latency_op_ns_v1_sum[1m]) / rate(latency_op_ns_v1_count[1m])",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -349,7 +349,7 @@
           "disableTextWrap": false,
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.9, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
+          "expr": "histogram_quantile(0.9, sum(rate(latency_op_ns_v1_bucket[1m])) by (le, op))",
           "format": "time_series",
           "fullMetaSearch": false,
           "hide": false,
@@ -453,7 +453,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
+          "expr": "histogram_quantile(0.95, sum(rate(latency_op_ns_v1_bucket[1m])) by (le, op))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -553,7 +553,7 @@
             "uid": "beey6hq4dmxhcc"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(latency_ns_v1_bucket[1m])) by (le, op))",
+          "expr": "histogram_quantile(0.99, sum(rate(latency_op_ns_v1_bucket[1m])) by (le, op))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
