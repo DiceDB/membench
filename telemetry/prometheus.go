@@ -4,15 +4,20 @@
 package telemetry
 
 import (
-	"fmt"
+    "context"
+    "fmt"
+    "time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/api"
+    v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+    "github.com/prometheus/common/model"
 )
 
 type PrometheusSink struct {
 	PLatencyOp *prometheus.HistogramVec
 	PErrorOp   *prometheus.CounterVec
+	apiClient  v1.API
 }
 
 func NewPrometheusSink() *PrometheusSink {
@@ -29,9 +34,17 @@ func NewPrometheusSink() *PrometheusSink {
 	}, []string{"op"})
 	prometheus.MustRegister(pErrorOp)
 
+	client, err := api.NewClient(api.Config{
+		Address: "http://localhost:9090", // Prometheus server address
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Error creating Prometheus client: %v", err))
+	}
+
 	p := &PrometheusSink{
 		PLatencyOp: pLatencyOp,
 		PErrorOp:   pErrorOp,
+		apiClient:  v1.NewAPI(client),
 	}
 	return p
 }
@@ -45,83 +58,96 @@ func (sink *PrometheusSink) RecordError(op string) {
 }
 
 func (sink *PrometheusSink) PrintReport() {
-	// Fetch metrics using prometheus API
-	fmt.Println("op,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
-	
-	// GET operation metrics
-	getLatencies := sink.PLatencyOp.WithLabelValues("GET")
-	getMetric := &dto.Metric{}
-	getLatencies.(prometheus.Metric).Write(getMetric)
-	if getMetric.Histogram != nil {
-		fmt.Printf("GET,%v,%v,%v,%v,%v\n",
-			calculateMean(getMetric.Histogram),
-			calculateQuantile(0.50, getMetric.Histogram),
-			calculateQuantile(0.90, getMetric.Histogram),
-			calculateQuantile(0.95, getMetric.Histogram),
-			calculateQuantile(0.99, getMetric.Histogram))
-	}
+    ctx := context.Background()
+    now := time.Now()
 
-	// SET operation metrics
-	setLatencies := sink.PLatencyOp.WithLabelValues("SET")
-	setMetric := &dto.Metric{}
-	setLatencies.(prometheus.Metric).Write(setMetric)
-	if setMetric.Histogram != nil {
-		fmt.Printf("SET,%v,%v,%v,%v,%v\n",
-			calculateMean(setMetric.Histogram),
-			calculateQuantile(0.50, setMetric.Histogram),
-			calculateQuantile(0.90, setMetric.Histogram),
-			calculateQuantile(0.95, setMetric.Histogram),
-			calculateQuantile(0.99, setMetric.Histogram))
-	}
+    fmt.Println("op,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
 
-	// Error counts
-	fmt.Println("op,error_count")
-	getErrors := sink.PErrorOp.WithLabelValues("GET")
-	getErrorMetric := &dto.Metric{}
-	getErrors.(prometheus.Metric).Write(getErrorMetric)
-	if getErrorMetric.Counter != nil {
-		fmt.Printf("GET,%v\n", *getErrorMetric.Counter.Value)
-	}
+    // Query latency metrics for GET operations
+    getAvg, _, err := sink.apiClient.Query(ctx, `avg(latency_op_ns_v1{op="GET"})`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET avg: %v\n", err)
+    }
+    getP50, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.50, sum(rate(latency_op_ns_v1_bucket{op="GET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET p50: %v\n", err)
+    }
+    getP90, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.90, sum(rate(latency_op_ns_v1_bucket{op="GET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET p90: %v\n", err)
+    }
+    getP95, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.95, sum(rate(latency_op_ns_v1_bucket{op="GET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET p95: %v\n", err)
+    }
+    getP99, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.99, sum(rate(latency_op_ns_v1_bucket{op="GET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET p99: %v\n", err)
+    }
 
-	setErrors := sink.PErrorOp.WithLabelValues("SET")
-	setErrorMetric := &dto.Metric{}
-	setErrors.(prometheus.Metric).Write(setErrorMetric)
-	if setErrorMetric.Counter != nil {
-		fmt.Printf("SET,%v\n", *setErrorMetric.Counter.Value)
-	}
+    fmt.Printf("GET,%v,%v,%v,%v,%v\n",
+        getScalarValue(getAvg),
+        getScalarValue(getP50),
+        getScalarValue(getP90),
+        getScalarValue(getP95),
+        getScalarValue(getP99))
+
+    // Query latency metrics for SET operations
+    setAvg, _, err := sink.apiClient.Query(ctx, `avg(latency_op_ns_v1{op="SET"})`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET avg: %v\n", err)
+    }
+    setP50, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.50, sum(rate(latency_op_ns_v1_bucket{op="SET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET p50: %v\n", err)
+    }
+    setP90, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.90, sum(rate(latency_op_ns_v1_bucket{op="SET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET p90: %v\n", err)
+    }
+    setP95, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.95, sum(rate(latency_op_ns_v1_bucket{op="SET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET p95: %v\n", err)
+    }
+    setP99, _, err := sink.apiClient.Query(ctx, `histogram_quantile(0.99, sum(rate(latency_op_ns_v1_bucket{op="SET"}[5m])) by (le))`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET p99: %v\n", err)
+    }
+
+    fmt.Printf("SET,%v,%v,%v,%v,%v\n",
+        getScalarValue(setAvg),
+        getScalarValue(setP50),
+        getScalarValue(setP90),
+        getScalarValue(setP95),
+        getScalarValue(setP99))
+
+    // Query error counts
+    fmt.Println("op,error_count")
+    getErrors, _, err := sink.apiClient.Query(ctx, `sum(error_op_count_v1{op="GET"})`, now)
+    if err != nil {
+        fmt.Printf("Error querying GET errors: %v\n", err)
+    }
+    setErrors, _, err := sink.apiClient.Query(ctx, `sum(error_op_count_v1{op="SET"})`, now)
+    if err != nil {
+        fmt.Printf("Error querying SET errors: %v\n", err)
+    }
+
+    fmt.Printf("GET,%v\n", getScalarValue(getErrors))
+    fmt.Printf("SET,%v\n", getScalarValue(setErrors))
 }
 
-// calculateMean calculates the mean from histogram data
-func calculateMean(h *dto.Histogram) float64 {
-	if h.SampleCount == nil || h.SampleSum == nil || *h.SampleCount == 0 {
-		return 0
-	}
-	return *h.SampleSum / float64(*h.SampleCount)
-}
-
-// calculateQuantile estimates the quantile value from histogram buckets
-func calculateQuantile(q float64, h *dto.Histogram) float64 {
-	if h.SampleCount == nil || *h.SampleCount == 0 {
-		return 0
-	}
-
-	count := uint64(float64(*h.SampleCount) * q)
-	var runningCount uint64
-	
-	for i, bucket := range h.Bucket {
-		runningCount += *bucket.CumulativeCount
-		if runningCount >= count {
-			// For the first bucket, use the upper bound directly
-			if i == 0 {
-				return *bucket.UpperBound
-			}
-			// For other buckets, interpolate between bounds
-			lowerBound := *h.Bucket[i-1].UpperBound
-			upperBound := *bucket.UpperBound
-			return (lowerBound + upperBound) / 2
-		}
-	}
-	
-	// If we get here, use the highest bucket's upper bound
-	return *h.Bucket[len(h.Bucket)-1].UpperBound
+// Helper function to extract scalar values from Prometheus query results
+func getScalarValue(result model.Value) float64 {
+    if result == nil {
+        return 0
+    }
+    switch v := result.(type) {
+    case *model.Scalar:
+        return float64(v.Value)
+    case model.Vector:
+        if len(v) > 0 {
+            return float64(v[0].Value)
+        }
+    }
+    return 0
 }
