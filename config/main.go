@@ -24,7 +24,7 @@ type Config struct {
 	ReadRatio   float64 `mapstructure:"read-ratio" default:"0.8"`
 	ReportEvery int     `mapstructure:"report-every" default:"1000"`
 
-	EmitMetricsSink string `mapstructure:"emit-metrics-sink" default:"null"`
+	EmitMetricsSink string `mapstructure:"emit-metrics-sink" default:"mem"`
 }
 
 func Init(flags *pflag.FlagSet) {

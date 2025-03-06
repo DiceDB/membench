@@ -53,5 +53,5 @@ func init() {
 	benchmarkCmd.Flags().Float64("read-ratio", 0.8, "ratio of read to write operations (0.0-1.0)")
 	benchmarkCmd.Flags().Int("report-every", 5, "report stats every n seconds")
 
-	benchmarkCmd.Flags().String("emit-metrics-sink", "null", "emit metrics to which sink (prometheus, null)")
+	benchmarkCmd.Flags().String("emit-metrics-sink", "mem", "emit metrics to which sink (prometheus, mem)")
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dicedb/membench/config"
@@ -22,7 +21,6 @@ func Test(cfg *config.Config) error {
 	d := newClient(cfg)
 	defer d.Close()
 
-	// Enhanced test with error handling
 	if _, err := d.Get(ctx, "test"); err != nil {
 		return fmt.Errorf("initial get test failed: %w", err)
 	}
@@ -41,33 +39,26 @@ func Test(cfg *config.Config) error {
 func Run(cfg *config.Config, rwg *sync.WaitGroup) {
 	defer rwg.Done()
 
-	ctx := context.Background()
-	stats := &reporting.BenchmarkStats{
-		GetLatencies: make([]time.Duration, 0, cfg.NumRequests),
-		SetLatencies: make([]time.Duration, 0, cfg.NumRequests),
-		StartTime:    time.Now(),
-		LastReportAt: time.Now(),
+	var teleSink reporting.TelemetrySink
+	if cfg.EmitMetricsSink == "mem" {
+		teleSink = reporting.NewMemTelemetrySink()
+	} else if cfg.EmitMetricsSink == "prometheus" {
+		teleSink = reporting.NewPrometheusTelemetrySink()
+	} else {
+		panic(fmt.Sprintf("unsupported metrics sink: %s", cfg.EmitMetricsSink))
 	}
 
-	runCtx, cancel := context.WithCancel(ctx)
+	runCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	// Reporting goroutine
-	go func() {
-		ticker := time.NewTicker(time.Duration(cfg.ReportEvery) * time.Second)
-		for range ticker.C {
-			stats.Print()
-		}
-	}()
 
 	var wg sync.WaitGroup
 	for range cfg.NumClients {
 		wg.Add(1)
-		go run(runCtx, cfg, stats, &wg)
+		go run(runCtx, cfg, teleSink, &wg)
 	}
 
 	wg.Wait()
-	stats.Print()
+	teleSink.PrintReport()
 }
 
 func newClient(cfg *config.Config) db.DB {
@@ -83,7 +74,7 @@ func newClient(cfg *config.Config) db.DB {
 	}
 }
 
-func run(ctx context.Context, cfg *config.Config, stats *reporting.BenchmarkStats, wg *sync.WaitGroup) {
+func run(ctx context.Context, cfg *config.Config, teleSink reporting.TelemetrySink, wg *sync.WaitGroup) {
 	d := newClient(cfg)
 	defer d.Close()
 	defer wg.Done()
@@ -105,42 +96,27 @@ func run(ctx context.Context, cfg *config.Config, stats *reporting.BenchmarkStat
 		value := values[reqCount]
 
 		var err error
+		var command string
 
 		start := time.Now()
 		if isRead {
+			command = "GET"
 			_, err = d.Get(ctx, key)
 		} else {
+			command = "SET"
 			err = d.Set(ctx, key, value)
 		}
 
-		handleOpStats(cfg, stats, err, time.Since(start), isRead)
+		handleOpStats(teleSink, err, time.Since(start), command)
 	}
 }
 
-// New helper function to reduce code duplication
-func handleOpStats(cfg *config.Config, stats *reporting.BenchmarkStats, err error, elapsed time.Duration, isGet bool) {
+func handleOpStats(teleSink reporting.TelemetrySink, err error, elapsed time.Duration, command string) {
 	if err != nil {
-		atomic.AddUint64(&stats.ErrorCount, 1)
+		teleSink.RecordError(command)
 		return
 	}
-
-	stats.StatLock.Lock()
-	defer stats.StatLock.Unlock()
-
-	if isGet {
-		stats.TotalGets++
-		stats.GetLatencies = append(stats.GetLatencies, elapsed)
-		if cfg.EmitMetricsSink == "prometheus" {
-			stats.Emit(float64(elapsed.Nanoseconds()), "GET")
-		}
-	} else {
-		stats.TotalSets++
-		stats.SetLatencies = append(stats.SetLatencies, elapsed)
-		if cfg.EmitMetricsSink == "prometheus" {
-			stats.Emit(float64(elapsed.Nanoseconds()), "SET")
-		}
-	}
-	stats.TotalOps++
+	teleSink.RecordLatencyCommandInNanos(float64(elapsed.Nanoseconds()), command)
 }
 
 func generateKey(prefix string, size int, r *rand.Rand) string {
