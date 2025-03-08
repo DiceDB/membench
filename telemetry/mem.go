@@ -5,7 +5,7 @@ package telemetry
 
 import (
 	"fmt"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
@@ -17,7 +17,8 @@ type MemSink struct {
 	MemErrorOpGET   *hdrhistogram.Histogram
 	MemErrorOpSET   *hdrhistogram.Histogram
 	startTime       time.Time
-	totalOps        atomic.Int64
+	totalOps        int64
+	mu              sync.Mutex
 }
 
 func NewMemSink() *MemSink {
@@ -27,12 +28,16 @@ func NewMemSink() *MemSink {
 		MemErrorOpGET:   hdrhistogram.New(1, 10000, 2),
 		MemErrorOpSET:   hdrhistogram.New(1, 10000, 2),
 		startTime:       time.Now(),
-		totalOps:        atomic.Int64{},
+		totalOps:        0,
+		mu:              sync.Mutex{},
 	}
 }
 
 func (sink *MemSink) RecordLatencyOpInNanos(latency_ns float64, op string) {
-	sink.totalOps.Add(1)
+	sink.mu.Lock()
+	defer sink.mu.Unlock()
+
+	sink.totalOps++
 	if op == "GET" {
 		_ = sink.MemLatencyOpGET.RecordValue(int64(latency_ns))
 	} else if op == "SET" {
@@ -41,6 +46,9 @@ func (sink *MemSink) RecordLatencyOpInNanos(latency_ns float64, op string) {
 }
 
 func (sink *MemSink) RecordError(op string) {
+	sink.mu.Lock()
+	defer sink.mu.Unlock()
+
 	if op == "GET" {
 		_ = sink.MemErrorOpGET.RecordValue(1)
 	} else if op == "SET" {
@@ -50,8 +58,8 @@ func (sink *MemSink) RecordError(op string) {
 
 func (sink *MemSink) PrintReport() {
 	fmt.Println("total_ops,elapsed_sec")
-	fmt.Printf("%v,%v\n", sink.totalOps.Load(), time.Since(sink.startTime).Seconds())
-	fmt.Printf("throughput_ops_per_sec,%v\n", float64(sink.totalOps.Load())/time.Since(sink.startTime).Seconds())
+	fmt.Printf("%v,%v\n", sink.totalOps, time.Since(sink.startTime).Seconds())
+	fmt.Printf("throughput_ops_per_sec,%v\n", float64(sink.totalOps)/time.Since(sink.startTime).Seconds())
 	fmt.Println()
 
 	fmt.Println("Throughput (ops/sec)")
