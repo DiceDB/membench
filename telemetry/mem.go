@@ -5,6 +5,8 @@ package telemetry
 
 import (
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
 )
@@ -14,6 +16,8 @@ type MemSink struct {
 	MemLatencyOpSET *hdrhistogram.Histogram
 	MemErrorOpGET   *hdrhistogram.Histogram
 	MemErrorOpSET   *hdrhistogram.Histogram
+	startTime       time.Time
+	totalOps        atomic.Int64
 }
 
 func NewMemSink() *MemSink {
@@ -22,10 +26,13 @@ func NewMemSink() *MemSink {
 		MemLatencyOpSET: hdrhistogram.New(1000, 50000000, 2),
 		MemErrorOpGET:   hdrhistogram.New(1, 10000, 2),
 		MemErrorOpSET:   hdrhistogram.New(1, 10000, 2),
+		startTime:       time.Now(),
+		totalOps:        atomic.Int64{},
 	}
 }
 
 func (sink *MemSink) RecordLatencyOpInNanos(latency_ns float64, op string) {
+	sink.totalOps.Add(1)
 	if op == "GET" {
 		_ = sink.MemLatencyOpGET.RecordValue(int64(latency_ns))
 	} else if op == "SET" {
@@ -42,6 +49,27 @@ func (sink *MemSink) RecordError(op string) {
 }
 
 func (sink *MemSink) PrintReport() {
+	fmt.Println("total_ops,elapsed_sec")
+	fmt.Printf("%v,%v\n", sink.totalOps.Load(), time.Since(sink.startTime).Seconds())
+	fmt.Printf("throughput_ops_per_sec,%v\n", float64(sink.totalOps.Load())/time.Since(sink.startTime).Seconds())
+	fmt.Println()
+
+	fmt.Println("Throughput (ops/sec)")
+	fmt.Println("GET,SET")
+	fmt.Printf("%v,%v\n",
+		float64(sink.MemLatencyOpGET.TotalCount())/time.Since(sink.startTime).Seconds(),
+		float64(sink.MemLatencyOpSET.TotalCount())/time.Since(sink.startTime).Seconds(),
+	)
+	fmt.Println()
+
+	fmt.Println("Errors")
+	fmt.Println("GET,SET")
+	fmt.Printf("%v,%v\n",
+		sink.MemErrorOpGET.TotalCount(),
+		sink.MemErrorOpSET.TotalCount(),
+	)
+	fmt.Println()
+
 	fmt.Println("op,latency_ns_avg,latency_ns_p50,latency_ns_p90,latency_ns_p95,latency_ns_p99")
 	fmt.Printf("GET,%v,%v,%v,%v,%v\n",
 		int64(sink.MemLatencyOpGET.Mean()),
@@ -55,8 +83,4 @@ func (sink *MemSink) PrintReport() {
 		sink.MemLatencyOpSET.ValueAtQuantile(90),
 		sink.MemLatencyOpSET.ValueAtQuantile(95),
 		sink.MemLatencyOpSET.ValueAtQuantile(99))
-
-	fmt.Println("op,error_count")
-	fmt.Printf("GET,%v\n", sink.MemErrorOpGET.TotalCount())
-	fmt.Printf("SET,%v\n", sink.MemErrorOpSET.TotalCount())
 }
